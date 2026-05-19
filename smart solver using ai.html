@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Problem Solver</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #16161f;
+    --border: #1e1e2e;
+    --accent: #7c6af7;
+    --accent2: #e96de0;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --code-bg: #0d0d14;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,247,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,247,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb1 { width: 400px; height: 400px; background: rgba(124,106,247,0.12); top: -100px; left: -100px; }
+  .orb2 { width: 300px; height: 300px; background: rgba(233,109,224,0.08); bottom: 100px; right: -80px; }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeSlideDown 0.6s ease both;
+  }
+
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(124,106,247,0.12);
+    border: 1px solid rgba(124,106,247,0.3);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .logo-badge .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 400;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Input Panel */
+  .input-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    animation: fadeSlideUp 0.6s 0.1s ease both;
+    transition: border-color 0.2s;
+  }
+
+  .input-panel:focus-within {
+    border-color: rgba(124,106,247,0.4);
+    box-shadow: 0 0 0 3px rgba(124,106,247,0.06);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .panel-header .dots { display: flex; gap: 6px; }
+  .panel-header .dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .dot-r { background: #f87171; }
+  .dot-y { background: #fbbf24; }
+  .dot-g { background: #4ade80; }
+
+  .panel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 20px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    resize: vertical;
+  }
+
+  textarea::placeholder { color: var(--muted); }
+
+  /* Options Row */
+  .options-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    animation: fadeSlideUp 0.6s 0.15s ease both;
+  }
+
+  .lang-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+    flex: 1;
+    min-width: 140px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236b6b80' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+    padding-right: 32px;
+    transition: border-color 0.2s;
+  }
+
+  .lang-select:hover, .lang-select:focus { border-color: rgba(124,106,247,0.5); }
+
+  .toggle-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .toggle-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .toggle-btn.active {
+    background: rgba(124,106,247,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .toggle-btn:hover:not(.active) {
+    border-color: var(--muted);
+    color: var(--text);
+  }
+
+  /* Solve Button */
+  .solve-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    animation: fadeSlideUp 0.6s 0.2s ease both;
+  }
+
+  .solve-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.1);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .solve-btn:hover::before { transform: translateX(0); }
+  .solve-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124,106,247,0.4); }
+  .solve-btn:active { transform: translateY(0); }
+  .solve-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Loading State */
+  .loading-bar {
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 1px;
+    width: 0%;
+    transition: width 0.3s ease;
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  .loading-bar.active { display: block; animation: loadingAnim 1.5s ease infinite; }
+
+  /* API Key Notice */
+  .api-notice {
+    background: rgba(251,191,36,0.08);
+    border: 1px solid rgba(251,191,36,0.25);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--amber);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    line-height: 1.6;
+    animation: fadeSlideUp 0.6s 0.25s ease both;
+  }
+
+  .api-key-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    animation: fadeSlideUp 0.6s 0.3s ease both;
+  }
+
+  .api-key-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-key-input:focus { border-color: rgba(124,106,247,0.5); }
+  .api-key-input::placeholder { color: var(--muted); }
+
+  .save-key-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .save-key-btn:hover { border-color: var(--green); color: var(--green); }
+
+  /* Output Section */
+  #output-section { display: none; animation: fadeSlideUp 0.5s ease both; }
+
+  .output-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 5px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab-btn.active {
+    background: var(--surface2);
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Result Panels */
+  .result-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .result-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .result-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .icon-code { background: rgba(124,106,247,0.2); }
+  .icon-approach { background: rgba(74,222,128,0.15); }
+  .icon-explain { background: rgba(251,191,36,0.15); }
+  .icon-complexity { background: rgba(233,109,224,0.15); }
+
+  .result-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .copy-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 5px 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+  /* Code Block */
+  .code-block {
+    padding: 20px;
+    background: var(--code-bg);
+    overflow-x: auto;
+  }
+
+  pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #c9d1d9;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Syntax highlighting classes */
+  .kw { color: #ff7b72; }
+  .fn { color: #d2a8ff; }
+  .str { color: #a5d6ff; }
+  .num { color: #f2cc60; }
+  .cmt { color: #8b949e; font-style: italic; }
+  .cls { color: #ffa657; }
+
+  /* Prose content */
+  .prose-block {
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+
+  .prose-block h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 16px 0 8px;
+  }
+
+  .prose-block h3:first-child { margin-top: 0; }
+
+  .prose-block p { margin-bottom: 12px; color: #b0b0c0; }
+
+  .prose-block ul {
+    list-style: none;
+    margin-bottom: 12px;
+  }
+
+  .prose-block ul li {
+    padding: 4px 0 4px 20px;
+    position: relative;
+    color: #b0b0c0;
+  }
+
+  .prose-block ul li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-size: 10px;
+    top: 7px;
+  }
+
+  /* Complexity badges */
+  .complexity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .complexity-card {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .complexity-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .complexity-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .complexity-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* Streaming cursor */
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 14px;
+    background: var(--accent);
+    animation: blink 0.8s step-end infinite;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+
+  /* Error */
+  .error-box {
+    background: rgba(248,113,113,0.08);
+    border: 1px solid rgba(248,113,113,0.25);
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: var(--red);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* Animations */
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes loadingAnim {
+    0% { width: 0%; margin-left: 0; }
+    50% { width: 70%; margin-left: 0; }
+    100% { width: 0%; margin-left: 100%; }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-badge"><span class="dot"></span>AI-POWERED</div>
+    <h1>Smart Problem Solver</h1>
+    <p class="subtitle">// describe your problem → get optimal code + approach</p>
+  </header>
+
+  <!-- API Key (hidden) -->
+  <input type="hidden" id="apiKeyInput" />
+
+  <!-- Problem Input -->
+  <div class="input-panel">
+    <div class="panel-header">
+      <div class="dots">
+        <span class="dot-r"></span>
+        <span class="dot-y"></span>
+        <span class="dot-g"></span>
+      </div>
+      <span class="panel-title">problem_input.txt</span>
+    </div>
+    <textarea id="problemInput" placeholder="Describe your problem...
+
+Examples:
+• Find the longest palindromic substring in a string
+• Implement a LRU cache with O(1) get and put
+• Given a binary tree, find the lowest common ancestor of two nodes
+• Design a rate limiter for an API
+• Sort a nearly sorted array efficiently"></textarea>
+  </div>
+
+  <!-- Options -->
+  <div class="options-row">
+    <select class="lang-select" id="langSelect">
+      <option value="Python">🐍 Python</option>
+      <option value="JavaScript">🟨 JavaScript</option>
+      <option value="TypeScript">🔷 TypeScript</option>
+      <option value="Java">☕ Java</option>
+      <option value="C++">⚡ C++</option>
+      <option value="Go">🐹 Go</option>
+      <option value="Rust">🦀 Rust</option>
+      <option value="C#">🟣 C#</option>
+      <option value="Swift">🍎 Swift</option>
+      <option value="Kotlin">🟠 Kotlin</option>
+    </select>
+
+    <div class="toggle-group">
+      <button class="toggle-btn active" id="toggleApproach" onclick="toggleOption('approach')">📋 Approach</button>
+      <button class="toggle-btn active" id="toggleExplain" onclick="toggleOption('explain')">💡 Explanation</button>
+      <button class="toggle-btn active" id="toggleComplexity" onclick="toggleOption('complexity')">📊 Complexity</button>
+    </div>
+  </div>
+
+  <button class="solve-btn" id="solveBtn" onclick="solveProblem()">
+    ⚡ Solve Problem
+  </button>
+
+  <div class="loading-bar" id="loadingBar"></div>
+
+  <!-- Output -->
+  <div id="output-section">
+
+    <div class="output-tabs">
+      <button class="tab-btn active" onclick="switchTab('all')">All Results</button>
+      <button class="tab-btn" onclick="switchTab('code')">Code Only</button>
+      <button class="tab-btn" onclick="switchTab('approach')">Approach</button>
+      <button class="tab-btn" onclick="switchTab('explain')">Explanation</button>
+    </div>
+
+    <!-- ALL TAB -->
+    <div class="tab-content active" id="tab-all">
+
+      <!-- Code -->
+      <div class="result-panel" id="codePanel">
+        <div class="result-header">
+          <div class="result-header-left">
+            <div class="result-icon icon-code">🖥️</div>
+            <span class="result-title">Optimal Code</span>
+          </div>
+          <button class="copy-btn" onclick="copyContent('codeContent', this)">Copy</button>
+        </div>
+        <div class="code-block">
+          <pre id="codeContent"></pre>
+        </div>
+      </div>
+
+      <!-- Complexity -->
+      <div class="result-panel" id="complexityPanel">
+        <div class="result-header">
+          <div class="result-header-left">
+            <div class="result-icon icon-complexity">📊</div>
+            <span class="result-title">Complexity Analysis</span>
+          </div>
+        </div>
+        <div class="complexity-grid" id="complexityContent"></div>
+      </div>
+
+      <!-- Approach -->
+      <div class="result-panel" id="approachPanel">
+        <div class="result-header">
+          <div class="result-header-left">
+            <div class="result-icon icon-approach">📋</div>
+            <span class="result-title">Approach & Strategy</span>
+          </div>
+          <button class="copy-btn" onclick="copyContent('approachContent', this)">Copy</button>
+        </div>
+        <div class="prose-block" id="approachContent"></div>
+      </div>
+
+      <!-- Explanation -->
+      <div class="result-panel" id="explainPanel">
+        <div class="result-header">
+          <div class="result-header-left">
+            <div class="result-icon icon-explain">💡</div>
+            <span class="result-title">Step-by-Step Explanation</span>
+          </div>
+          <button class="copy-btn" onclick="copyContent('explainContent', this)">Copy</button>
+        </div>
+        <div class="prose-block" id="explainContent"></div>
+      </div>
+
+    </div>
+
+    <!-- CODE ONLY TAB -->
+    <div class="tab-content" id="tab-code">
+      <div class="result-panel">
+        <div class="result-header">
+          <div class="result-header-left">
+            <div class="result-icon icon-code">🖥️</div>
+            <span class="result-title" id="codePanelTitle">Optimal Code</span>
+          </div>
+          <button class="copy-btn" onclick="copyContent('codeContent2', this)">Copy</button>
+        </div>
+        <div class="code-block">
+          <pre id="codeContent2"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- APPROACH TAB -->
+    <div class="tab-content" id="tab-approach">
+      <div class="result-panel">
+        <div class="result-header">
+          <div class="result-header-left">
+            <div class="result-icon icon-approach">📋</div>
+            <span class="result-title">Approach & Strategy</span>
+          </div>
+        </div>
+        <div class="prose-block" id="approachContent2"></div>
+      </div>
+    </div>
+
+    <!-- EXPLAIN TAB -->
+    <div class="tab-content" id="tab-explain">
+      <div class="result-panel">
+        <div class="result-header">
+          <div class="result-header-left">
+            <div class="result-icon icon-explain">💡</div>
+            <span class="result-title">Step-by-Step Explanation</span>
+          </div>
+        </div>
+        <div class="prose-block" id="explainContent2"></div>
+      </div>
+    </div>
+
+  </div><!-- /output-section -->
+
+</div><!-- /container -->
+
+<script>
+  // ─── YOUR API KEY (paste it here to skip the input box) ─
+  const HARDCODED_KEY = 'sk-ant-your-key-here';
+
+  // ─── State ─────────────────────────────────────────────
+  const options = { approach: true, explain: true, complexity: true };
+  let lastResult = null;
+
+  // ─── Load saved API key ─────────────────────────────────
+  window.onload = () => {
+    const saved = localStorage.getItem('anthropic_api_key');
+    if (HARDCODED_KEY && HARDCODED_KEY !== 'sk-ant-your-key-here') {
+      document.getElementById('apiKeyInput').value = HARDCODED_KEY;
+    } else if (saved) {
+      document.getElementById('apiKeyInput').value = saved;
+    }
+  };
+
+  function saveApiKey() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (!key) return alert('Please enter an API key first.');
+    localStorage.setItem('anthropic_api_key', key);
+    const btn = event.target;
+    btn.textContent = '✅ Saved!';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = '💾 Save Key'; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
+  }
+
+  function toggleOption(key) {
+    options[key] = !options[key];
+    document.getElementById('toggle' + key.charAt(0).toUpperCase() + key.slice(1))
+      .classList.toggle('active', options[key]);
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', ['all','code','approach','explain'][i] === tab);
+    });
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+  }
+
+  // ─── Copy ───────────────────────────────────────────────
+  async function copyContent(id, btn) {
+    const el = document.getElementById(id);
+    const text = el.innerText || el.textContent;
+    await navigator.clipboard.writeText(text);
+    btn.textContent = '✓ Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  }
+
+  // ─── Main Solve ─────────────────────────────────────────
+  async function solveProblem() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim() || localStorage.getItem('anthropic_api_key') || '';
+    const problem = document.getElementById('problemInput').value.trim();
+    const lang = document.getElementById('langSelect').value;
+
+    if (!apiKey) { showError('Please enter your Anthropic API key above.'); return; }
+    if (!problem) { showError('Please describe your problem first.'); return; }
+
+    // UI loading state
+    const btn = document.getElementById('solveBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Analyzing & Solving...';
+    document.getElementById('loadingBar').classList.add('active');
+    document.getElementById('output-section').style.display = 'none';
+
+    // Build prompt
+    const sections = [];
+    sections.push(`Generate OPTIMAL ${lang} code solution`);
+    if (options.complexity) sections.push('time and space complexity analysis');
+    if (options.approach) sections.push('approach/strategy explanation');
+    if (options.explain) sections.push('step-by-step explanation of the code');
+
+    const systemPrompt = `You are an expert competitive programmer and software engineer. 
+You solve problems with OPTIMAL algorithms and clean, production-quality code.
+You MUST respond ONLY with a valid JSON object. No markdown, no backticks, no extra text.
+
+JSON structure:
+{
+  "code": "the complete ${lang} code as a string (use \\n for newlines)",
+  "time_complexity": "e.g. O(n log n)",
+  "space_complexity": "e.g. O(n)",
+  "complexity_note": "brief note about why this is optimal",
+  "approach": "HTML string for the approach section using <h3>, <p>, <ul><li> tags",
+  "explanation": "HTML string for the explanation section using <h3>, <p>, <ul><li> tags"
+}`;
+
+    const userPrompt = `Problem: ${problem}
+
+Language: ${lang}
+Required sections: ${sections.join(', ')}
+
+Provide the most optimal solution possible with clear explanations.`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 4000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }]
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || `API Error ${response.status}`);
+      }
+
+      const data = await response.json();
+      const rawText = data.content.map(b => b.text || '').join('');
+
+      // Parse JSON
+      let result;
+      try {
+        const cleaned = rawText.replace(/^```json?\s*/i, '').replace(/```\s*$/,'').trim();
+        result = JSON.parse(cleaned);
+      } catch(e) {
+        // fallback: extract JSON from text
+        const match = rawText.match(/\{[\s\S]*\}/);
+        if (match) result = JSON.parse(match[0]);
+        else throw new Error('Could not parse response. Try again.');
+      }
+
+      lastResult = result;
+      renderResult(result, lang);
+
+    } catch(err) {
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '⚡ Solve Problem';
+      document.getElementById('loadingBar').classList.remove('active');
+    }
+  }
+
+  // ─── Render ─────────────────────────────────────────────
+  function renderResult(r, lang) {
+    const out = document.getElementById('output-section');
+    out.style.display = 'block';
+
+    // Code
+    const codeHtml = highlightCode(r.code || '// No code generated', lang);
+    document.getElementById('codeContent').innerHTML = codeHtml;
+    document.getElementById('codeContent2').innerHTML = codeHtml;
+    document.getElementById('codePanelTitle').textContent = `Optimal ${lang} Code`;
+
+    // Complexity
+    if (options.complexity && r.time_complexity) {
+      document.getElementById('complexityPanel').style.display = '';
+      document.getElementById('complexityContent').innerHTML = `
+        <div class="complexity-card">
+          <div class="complexity-label">Time Complexity</div>
+          <div class="complexity-value">${r.time_complexity || 'N/A'}</div>
+        </div>
+        <div class="complexity-card">
+          <div class="complexity-label">Space Complexity</div>
+          <div class="complexity-value">${r.space_complexity || 'N/A'}</div>
+        </div>
+        <div class="complexity-card" style="grid-column: 1/-1">
+          <div class="complexity-label">Why Optimal</div>
+          <div class="complexity-note" style="font-size:13px;color:var(--text)">${r.complexity_note || ''}</div>
+        </div>
+      `;
+    } else {
+      document.getElementById('complexityPanel').style.display = 'none';
+    }
+
+    // Approach
+    if (options.approach && r.approach) {
+      document.getElementById('approachPanel').style.display = '';
+      document.getElementById('approachContent').innerHTML = r.approach;
+      document.getElementById('approachContent2').innerHTML = r.approach;
+    } else {
+      document.getElementById('approachPanel').style.display = 'none';
+    }
+
+    // Explanation
+    if (options.explain && r.explanation) {
+      document.getElementById('explainPanel').style.display = '';
+      document.getElementById('explainContent').innerHTML = r.explanation;
+      document.getElementById('explainContent2').innerHTML = r.explanation;
+    } else {
+      document.getElementById('explainPanel').style.display = 'none';
+    }
+
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ─── Basic Syntax Highlighting ───────────────────────────
+  function highlightCode(code, lang) {
+    let escaped = code
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;');
+
+    // Comments
+    escaped = escaped.replace(/(#[^\n]*|\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g, '<span class="cmt">$1</span>');
+
+    // Strings
+    escaped = escaped.replace(/(?<!<span[^>]*>)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, '<span class="str">$1</span>');
+
+    // Numbers
+    escaped = escaped.replace(/\b(\d+\.?\d*)\b/g, '<span class="num">$1</span>');
+
+    // Keywords by language
+    const kwMap = {
+      Python: ['def','class','return','if','else','elif','for','while','in','not','and','or','import','from','try','except','with','as','lambda','yield','pass','break','continue','True','False','None','self','async','await'],
+      JavaScript: ['function','const','let','var','return','if','else','for','while','class','new','this','import','export','from','try','catch','async','await','of','in','typeof','instanceof','null','undefined','true','false'],
+      TypeScript: ['function','const','let','var','return','if','else','for','while','class','new','this','import','export','from','try','catch','async','await','interface','type','enum','extends','implements','null','undefined','true','false'],
+      Java: ['public','private','protected','static','void','class','return','if','else','for','while','new','this','import','try','catch','final','int','String','boolean','true','false','null','extends','implements'],
+      'C++': ['int','void','class','return','if','else','for','while','new','delete','public','private','protected','include','using','namespace','template','auto','const','static','true','false','nullptr'],
+      Go: ['func','var','const','type','struct','return','if','else','for','range','import','package','map','make','new','nil','true','false','go','defer','chan','select','interface'],
+      Rust: ['fn','let','mut','struct','impl','return','if','else','for','while','match','use','mod','pub','self','true','false','None','Some','Ok','Err','async','await','loop'],
+      'C#': ['public','private','protected','static','void','class','return','if','else','for','while','new','this','using','try','catch','null','true','false','var','string','int','bool','async','await'],
+      Swift: ['func','var','let','class','struct','return','if','else','for','while','import','self','true','false','nil','guard','enum','switch','case','default'],
+      Kotlin: ['fun','val','var','class','return','if','else','for','while','when','import','this','true','false','null','object','interface','data','sealed','companion']
+    };
+
+    const kws = kwMap[lang] || kwMap['Python'];
+    kws.forEach(kw => {
+      const re = new RegExp(`\\b(${kw})\\b(?![^<]*>)`, 'g');
+      escaped = escaped.replace(re, '<span class="kw">$1</span>');
+    });
+
+    // Function calls
+    escaped = escaped.replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (m, name) => {
+      if (kws.includes(name)) return m;
+      return `<span class="fn">${name}</span>`;
+    });
+
+    return escaped;
+  }
+
+  // ─── Error ───────────────────────────────────────────────
+  function showError(msg) {
+    const out = document.getElementById('output-section');
+    out.style.display = 'block';
+    out.innerHTML = `<div class="error-box">❌ <strong>Error:</strong> ${msg}</div>`;
+  }
+</script>
+</body>
+</html>
